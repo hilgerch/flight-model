@@ -10,6 +10,9 @@ library(dplyr)
 library(ggplot2)
 library(gdata)
 library(lubridate)
+library(broom)
+library(ROCR)
+library(caret)
 ```
 
 
@@ -29,10 +32,10 @@ flight_data_test <- read.xls ("FlightDelays.xls", sheet = 1, header = TRUE)
 ```
 
 ```{r}
+#dont need this for the Flightdelays.xls sheet
 
-
-flight_data_test <- flight_data_test %>%
-  mutate(is_delayed = if_else(ArrDelay > 0, 1, 0))
+#flight_data_test <- flight_data_test %>%
+  #mutate(is_delayed = if_else(ArrDelay > 0, 1, 0))
   
   
 ```
@@ -59,6 +62,7 @@ summary(flight_data_test$CARRIER)
 ```
 
 ```{r}
+#Plot out percentage of delays by airline
 flight_data_test %>%
   group_by(CARRIER)%>%
   summarise( n = n()) %>%
@@ -69,40 +73,28 @@ flight_data_test %>%
 
 ```{r}
 
-
+#Plot out percentage of delays by day of week
 day_of_week <- flight_data_test %>%
   group_by(DAY_WEEK, Flight.Status)%>%
   summarise( n = n()) %>%
   mutate(freq = n / sum(n))
   
-
-
-```
-
-
-```{r}
 day_of_week$Flight.Status <- relevel(day_of_week$Flight.Status, 'ontime')
-```
 
 
-```{r}
 
-
-# Stacked barplot with multiple groups
 ggplot(data= day_of_week, aes(x=DAY_WEEK, y=freq, fill=Flight.Status)) +
   geom_bar(stat="identity")
-
 ```
 
 ```{r}
+
+#Plot out percentage of delays by airport destination
+
 destination_airport <- flight_data_test %>%
   group_by(DEST, Flight.Status)%>%
   summarise( n = n()) %>%
   mutate(freq = n / sum(n))
-```
-
-
-```{r}
 
 destination_airport$Flight.Status <- relevel(destination_airport$Flight.Status, 'ontime')
 
@@ -111,7 +103,11 @@ ggplot(data= destination_airport, aes(x=DEST, y=freq, fill=Flight.Status)) +
 ```
 
 
+
+
 ```{r}
+
+#Plot out percentage of delays by airport origin
 
 origin_airport <- flight_data_test %>%
   group_by(ORIGIN, Flight.Status)%>%
@@ -176,21 +172,74 @@ flight_data_test_all$FlightStatus <- flight_data_test$Flight.Status
 
 
 
-## 75% of the sample size
-smp_size <- floor(0.6 * nrow(flight_data_test_all))
+train_index <- createDataPartition(flight_data_test_all$FlightStatus, p=0.6, list=FALSE)
 
-## set the seed to make your partition reproductible
-set.seed(123)
+training <- flight_data_test_all[ train_index, ]
+testing <- flight_data_test_all[ -train_index, ]
 
-train_ind <- sample(seq_len(nrow(flight_data_test_all)), size = smp_size)
+mod_fit_one <- glm(FlightStatus ~ ., data=training, family="binomial")
 
-train <-as.data.frame(flight_data_test_all[train_ind, ])
-test <- as.data.frame(flight_data_test_all[-train_ind, ])
+
+summary(mod_fit_one) # estimates 
+exp(coef(mod_fit_one)) # odds ratios
+
+
+testing$prediction <- predict(mod_fit_one, newdata=testing, type="response") # predicted probabilities
+
+
+
+testing$predict <- factor(ifelse(testing$prediction >= 0.52389118, "delayed", "ontime"))
+
+
+#set positive class to ontime, and draw the confusion matrix 
+confusionMatrix(data = testing$predict, reference = testing$FlightStatus, positive = levels(testing$FlightStatus)[1])
+```
+
+
+
+
+
+
+```{r}
+
+pred <- prediction( testing$prediction, testing$FlightStatus, label.ordering = c("delayed", "ontime"))
+perf <- performance(pred,"tpr","fpr")
+plot(perf)
+abline(a=0, b= 1)
+
+
+#print out area under the curve
+
+#perf <- performance(pred, "auc")
+#print(perf@y.values[[1]])
+
+
+cutoffs <- data.frame(cut=perf@alpha.values[[1]], fpr=perf@x.values[[1]], 
+                      tpr=perf@y.values[[1]])
+
 
 
 ```
 
 ```{r}
-glm(formula = FlightStatus ~ ., family = binomial, data = train)
+
+#make the confusion matrix for train data
+
+
+test$predict <- predict(model, type="response", newdata = test)
+
+confusionMatrix(test$FlightStatus,if_else(test$predict > 0.5, "ontime", "delayed"))
+
+
+
+pred <- prediction(  test$predict,  test$FlightStatus)
+perf <- performance(pred,"tpr","fpr")
+plot(perf)
+abline(a=0, b= 1)
+
+```
+
+```{r}
+
 ```
 
