@@ -241,5 +241,149 @@ abline(a=0, b= 1)
 
 ```{r}
 
+FlightData_2017 <- read.csv("/Users/chrishilger/Downloads/Flight_Data/newfile.csv")
+```
+
+```{r}
+FlightData_2017 <- FlightData_2017 %>% filter(YEAR != "YEAR")
+
+```
+
+```{r}
+testing <- head(FlightData_2017)
+
+```
+
+```{r}
+
+testing$DATE <- as.Date( paste(testing$MONTH , testing$DAY_OF_MONTH , testing$YEAR, sep = "-" )  , format = "%m-%d-%Y" )
+
+
+testing1 <- testing %>%
+  select(DATE, everything())
+
+testing1 <- testing1[,-ncol(testing1)]
+
+
+```
+
+```{r}
+#do it on the real data set
+
+FlightData_2017_final <- FlightData_2017
+
+FlightData_2017_final$DATE <- as.Date( paste(FlightData_2017_final$MONTH , FlightData_2017_final$DAY_OF_MONTH , FlightData_2017_final$YEAR, sep = "-" )  , format = "%m-%d-%Y" )
+
+
+FlightData_2017_final <- FlightData_2017_final %>%
+  select(DATE, everything())
+
+FlightData_2017_final <- FlightData_2017_final[,-ncol(FlightData_2017_final)]
+
+```
+
+```{r}
+FlightData_2017_final <- FlightData_2017_final %>% arrange(DATE)
+```
+
+```{r}
+flightsDB <- FlightData_2017_final
+```
+
+
+```{r}
+airportsDB <- read.csv('/Users/chrishilger/Downloads/Flight_Data/Lookup/L_AIRPORT_ID.csv',
+                header = TRUE, stringsAsFactors = FALSE)
+carriersDB <- read.csv('/Users/chrishilger/Downloads/Flight_Data/Lookup/L_UNIQUE_CARRIERS.csv',
+                        header = TRUE, stringsAsFactors = FALSE)
+```
+
+
+
+```{r}
+holidays <- c('2017-01-02', '2017-01-16', '2017-02-20', '2017-05-29',
+            '2017-07-04', '2017-09-04', '2017-10-09', '2017-11-10',
+            '2017-11-23', '2017-12-25') # Ten major holidays, including Memorial Day, Columbus Day, Labor Day, MLK Day
+                                            # Veteran's Day, New Year's, President's Day, Independence Day, Thanksgiving, 
+                                            # and Christmas Day.
+holidayDates <- as.Date(holidays)
+```
+
+
+```{r}
+#Find if date is holiday function
+
+DaysToHoliday <- function(month, day){ # Input a month and day from the flightsDB
+      
+    # Get our year.
+    year <- 2017
+  
+    # Paste on a 2013 for November and December dates.
+    
+    currDate <- as.Date(paste(year,month,day,sep = '-')) # Create a DATE object we can use to calculate the time difference
+    
+      
+    numDays <- as.numeric(min(abs(currDate-holidayDates))) # Now find the minimum difference between the date and our holidays
+    return(numDays)                                        # We can vectorize this to automatically find the minimum closest
+                                                             # holiday by subtracting all holidays at once
+      
+}
+```
+
+
+```{r}
+#hashing table for days to holiday
+
+datesOfYear <- unique(flightsDB[,3:4]) # Get all of the dates through unique Month/Day combinations
+datesOfYear$HDAYS <- mapply(DaysToHoliday, datesOfYear$MONTH, datesOfYear$DAY_OF_MONTH) 
+    
+
+```
+
+
+```{r}
+#read from our hashing table
+
+
+InputDays <- function(month,day){
+    finalDays <- datesOfYear$HDAYS[datesOfYear$MONTH == month & datesOfYear$DAY_OF_MONTH == day] # Find which row to get
+    return(finalDays)
+}
+```
+
+```{r}
+#add the holidays feature to our table
+
+flightsDB$HDAYS <- mapply(InputDays, flightsDB$MONTH, flightsDB$DAY_OF_MONTH)
+```
+
+
+
+```{r}
+#group arrival and departure time by hour
+
+flightsDB$ARR_HOUR <- trunc(flightsDB$CRS_ARR_TIME/100) # Cuts off the minutes, essentially.
+flightsDB$DEP_HOUR <- trunc(flightsDB$CRS_DEP_TIME/100)
+```
+
+```{r}
+write.csv(flightsDB, "flightsDB.csv")
+```
+
+```{r}
+flightsDB <- read.csv("flightsDB.csv")
+
+
+```
+
+```{r}
+flightsDB$ARR_HOUR <- trunc(flightsDB$CRS_ARR_TIME/100) # Cuts off the minutes, essentially.
+flightsDB$DEP_HOUR <- trunc(flightsDB$CRS_DEP_TIME/100)
+```
+
+
+
+```{r}
+test <- read.csv("/Users/chrishilger/Downloads/Flight_Data/newfile.csv")
 ```
 
