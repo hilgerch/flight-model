@@ -359,22 +359,7 @@ flightsDB$HDAYS <- mapply(InputDays, flightsDB$MONTH, flightsDB$DAY_OF_MONTH)
 
 
 
-```{r}
-#group arrival and departure time by hour
 
-flightsDB$ARR_HOUR <- trunc(flightsDB$CRS_ARR_TIME/100) # Cuts off the minutes, essentially.
-flightsDB$DEP_HOUR <- trunc(flightsDB$CRS_DEP_TIME/100)
-```
-
-```{r}
-write.csv(flightsDB, "flightsDB.csv")
-```
-
-```{r}
-flightsDB <- read.csv("flightsDB.csv")
-
-
-```
 
 ```{r}
 flightsDB$ARR_HOUR <- trunc(flightsDB$CRS_ARR_TIME/100) # Cuts off the minutes, essentially.
@@ -384,6 +369,71 @@ flightsDB$DEP_HOUR <- trunc(flightsDB$CRS_DEP_TIME/100)
 
 
 ```{r}
-test <- read.csv("/Users/chrishilger/Downloads/Flight_Data/newfile.csv")
+top_departuresDB <- flightsDB %>% 
+  group_by(ORIGIN_AIRPORT_ID) %>%
+  summarize(TOTAL_DEPARTING_FLIGHTS = n()) %>%
+  arrange(desc(TOTAL_DEPARTING_FLIGHTS))
+
+
+top_departuresDB <- head(top_departuresDB, 50)
+```
+
+```{r}
+flightsDB_joined <- flightsDB_joined %>% 
+  filter(ORIGIN_AIRPORT_ID %in% top_departuresDB$ORIGIN_AIRPORT_ID)
+```
+
+```{r}
+flightsDB_joined <- flightsDB_joined %>% 
+  filter(DEST_AIRPORT_ID %in% top_departuresDB$ORIGIN_AIRPORT_ID)
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+flightsDB_joined <- left_join(flightsDB_top_dep_dest, carriersDB, by = c("UNIQUE_CARRIER" ="Code"))
+
+flightsDB_joined <- left_join(flightsDB_joined, airportsDB, by = c("ORIGIN_AIRPORT_ID" ="Code"))
+
+flightsDB_joined <- left_join(flightsDB_joined, airportsDB, by = c("DEST_AIRPORT_ID" ="Code"))
+
+flightsDB_joined <- rename(flightsDB_joined, CARRIER_NAME = 'Description.x' )
+flightsDB_joined <- rename(flightsDB_joined, ORIGIN_AIRPORT = 'Description.y' )
+flightsDB_joined <- rename(flightsDB_joined, DESTINATION_AIRPORT = 'Description' )
+
+
+
+```
+
+```{r}
+test <- head(flightsDB_joined)
+
+test <-test[,-1]
+```
+
+
+```{r}
+flightsDB_joined$CARRIER_CODE <- as.numeric(as.factor(flightsDB_joined$UNIQUE_CARRIER))
+```
+
+```{r}
+
+
+flightsDB_joined <-flightsDB_joined[,-1]
+```
+
+```{r}
+write.csv(flightsDB_joined, 'FinalFlightsNumeric.csv')
+```
+
+```{r}
+
 ```
 
