@@ -1,0 +1,185 @@
+---
+title: "Flight Data Visualization"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+```
+
+
+
+```{r}
+rawDB <- read.csv("FinalFlightsNumeric_with_Aircraft_Info.csv")
+```
+
+
+```{r}
+mainDB <- rawDB %>% 
+  select(UNIQUE_CARRIER, 
+         TAIL_NUM,
+         ORIGIN_AIRPORT_ID, 
+         DEST_AIRPORT_ID,        
+         DISTANCE, 
+         CRS_ELAPSED_TIME,
+         ARR_DELAY,
+         CARRIER_DELAY,     
+         WEATHER_DELAY,      
+         NAS_DELAY,     
+         SECURITY_DELAY,   
+         LATE_AIRCRAFT_DELAY,           
+         CARRIER_NAME,   
+         ORIGIN_AIRPORT,   
+         DESTINATION_AIRPORT, 
+         CARRIER_CODE,  
+         YEAR.MFR,    
+         MFR.MDL.CODE,   
+         MFR,      
+         MODEL,       
+         NO.ENG,     
+         NO.SEATS)
+```
+
+```{r}
+aircraft_types <- unique(mainDB$MODEL)
+write.csv(aircraft_types, "aircraft_types.csv")
+```
+
+
+```{r}
+
+flight_countDB <- mainDB %>%
+  group_by(MODEL) %>%
+  summarize(FLIGHT_COUNT = n()) %>%
+  arrange(desc(FLIGHT_COUNT))
+
+
+
+```
+
+#export to csv to do some manual cleanup in excel
+```{r}
+write.csv(flight_countDB, "aircraft_types.csv")
+```
+
+
+#import this new version of the csv 
+```{r}
+flight_countDB1 <- read.csv("aircraft_types.csv")
+```
+
+```{r}
+aircraft_types_mapping <- flight_countDB1 %>% 
+  select(MODEL, MODEL_GENERAL)
+```
+
+
+
+#merge the new version back to the old table
+
+```{r}
+mainDB_aircraft_types <- left_join(mainDB, aircraft_types_mapping, by = c("MODEL", "MODEL"))
+```
+
+
+
+
+#Get number of flights by model general
+```{r}
+mainDB_aircraft_types_flight_count <- mainDB_aircraft_types %>%
+  group_by(MODEL_GENERAL) %>%
+  summarize(FLIGHT_COUNT_SUM = n()) %>%
+  arrange(desc(FLIGHT_COUNT_SUM))
+```
+
+
+
+#make vector of top aircraft
+```{r}
+
+mainDB_aircraft_types_flight_count <- mainDB_aircraft_types_flight_count %>% 
+  filter(MODEL_GENERAL != "NA") %>%
+  filter(MODEL_GENERAL!= "OTHER")
+
+
+top_aircraft <- head(as.vector(mainDB_aircraft_types_flight_count$MODEL_GENERAL), 15)
+top_aircraft
+
+```
+
+#filter out unpopular aircraft, and flights that dont have elapsed time info
+```{r}
+mainDB_aircraft_types <- mainDB_aircraft_types %>%
+  filter(MODEL_GENERAL %in% top_aircraft) %>%
+  filter(!is.na(CRS_ELAPSED_TIME)) %>%
+  filter(!is.na(ARR_DELAY))
+
+```
+
+```{r}
+mainDB_aircraft_types$ROUTE <- paste(mainDB_aircraft_types$ORIGIN_AIRPORT,"to", mainDB_aircraft_types$DESTINATION_AIRPORT)
+```
+
+
+
+#get most popular route by airplane
+
+```{r}
+lolz <- mainDB_aircraft_types %>% 
+  group_by(MODEL_GENERAL) %>%
+  summarize(FLEET_SIZE = length(unique(TAIL_NUM)),
+            
+            POPULAR_ROUTE = names(which.max(table(ROUTE))),
+            POPULAR_CARRIER = names(which.max(table(CARRIER_NAME))),
+            NUM_FLIGHTS = n(),
+            AVG_NUM_FLIGHTS_PLANE = NUM_FLIGHTS/FLEET_SIZE,
+            AVG_MILES_FLIGHT = sum(DISTANCE)/NUM_FLIGHTS,
+            AVG_TIME_FLIGHT = sum(CRS_ELAPSED_TIME)/NUM_FLIGHTS,
+            AVG_ARR_DELAY  = mean(ARR_DELAY),
+            ON_TIME_PERF = sum((ARR_DELAY < 15))/NUM_FLIGHTS ,
+            AVG_SEAT = mean(NO.SEATS), 
+            AVG_AGE = mean(2017 - YEAR.MFR),
+            NUM_ENGINES = mean(NO.ENG)
+            
+            
+            
+            
+            
+            )    
+
+
+```
+
+#number of 
+```{r}
+
+library(ggplot2)
+```
+
+
+#make a plot for fun
+```{r}
+ggplot(lolz, aes(x=AVG_MILES_FLIGHT, y=AVG_NUM_FLIGHTS )) + 
+  geom_point() +
+   geom_smooth(method = lm)
+# Change the point size, and shape
+```
+
+
+```{r}
+ggplot(lolz, aes(x=AVG_NUM_FLIGHTS, y=AVG_ARR_DELAY )) + 
+  geom_point() +
+   geom_smooth(method = lm)
+```
+
+
+```{r}
+n <- length(mainDB_aircraft_types$ROUTE)
+sort(mainDB_aircraft_types$ROUTE,partial=length(mainDB_aircraft_types$ROUTE)-1)[length(mainDB_aircraft_types$ROUTE)-1]
+```
+
