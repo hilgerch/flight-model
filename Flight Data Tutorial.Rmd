@@ -433,7 +433,51 @@ flightsDB_joined <-flightsDB_joined[,-1]
 write.csv(flightsDB_joined, 'FinalFlightsNumeric.csv')
 ```
 
+
+
+#lookup type of plane from tail number
 ```{r}
+tailDB <- read.csv("MASTER.txt")
+```
+
+```{r}
+aircraftDB <- read.csv("ACFTREF.txt")
+```
+
+```{r}
+aircraftDB <- aircraftDB %>% select(CODE, MFR , MODEL, NO.ENG, NO.SEATS)
+```
+
+
+```{r}
+tailDB <- tailDB %>% select(N.NUMBER, YEAR.MFR, MFR.MDL.CODE)
+
+tailDB$N.NUMBER <- paste("N",tailDB$N.NUMBER, sep ="")
 
 ```
+
+
+```{r}
+testDB <- left_join(flightsDB_joined, tailDB, by = c("TAIL_NUM" ="N.NUMBER"))
+```
+
+
+```{r}
+testDB_narm <-testDB %>% 
+  filter(!is.na(YEAR.MFR) & !is.na(MFR.MDL.CODE))
+```
+
+
+
+```{r}
+flightsDB_joined_model <- left_join(testDB_narm, aircraftDB, by = c("MFR.MDL.CODE" ="CODE"))
+```
+
+
+```{r}
+write.csv(flightsDB_joined_model, "FinalFlightsNumeric_with_Aircraft_Info.csv")
+```
+
+
+
 
